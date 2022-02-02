@@ -1,0 +1,34 @@
+name: new-build-needed
+on:
+#  schedule:
+#    - cron: '03 10 * * *'
+  workflow_dispatch:
+  push:
+
+jobs:
+  snap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Get build type
+        id: get-build-type
+        run: |
+            stdout=$(.github/scripts/getbuildtype.py)
+            echo "::set-output name=buildtype::$(echo $stdout | awk '{print $1}')"
+            echo "::set-output name=stdout::$stdout"
+      - name: check-branch-current
+        if: steps.get-build-type.outputs.buildtype == 'git-branch'
+        env:
+          LAUNCHPAD_TOKEN: ${{ secrets.LAUNCHPAD }}
+        run: |
+          echo $LAUNCHPAD_TOKEN | base64 -d > launchpad
+          mkdir ~/snap-builds
+          cp launchpad ~/snap-builds/credentials
+          sudo cp .github/scripts/lp-build-snap /usr/bin/
+          echo "${{ steps.get-build-type.outputs.stdout }}" | cut -d\  -f2-| xargs .github/scripts/branchneedsrebuild.py -c edge -l https://launchpad.net/~seb128/+snap/evince
+#      - name: check-tag-current
+#        if: steps.get-build-type.outputs.buildtype == 'git-tag'
+#        run: echo "it's a tag build"
+#      - name: Install python deps
+#        run: sudo apt update && sudo apt install python3-launchpadlib
+
